@@ -1,0 +1,6 @@
+{
+  "name": "Asha - Asisten Virtual SMATAQ",
+  "description": "Asisten virtual resmi SMA Takhassus Al-Qur'an Wonosobo untuk memberikan informasi pendaftaran (PPDB), keunggulan, fasilitas, dan prestasi sekolah.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
