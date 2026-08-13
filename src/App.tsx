@@ -33,37 +33,12 @@ export default function App() {
       try {
         setCustomKnowledge(JSON.parse(savedKnowledge));
       } catch (e) {
-        console.error("Gagal meluat basis data tambahan.");
+        console.error("Gagal memuat basis data tambahan.");
+        setCustomKnowledge([]);
       }
     } else {
-      const seedData: CustomKnowledgeItem[] = [
-        {
-          id: "seed-1",
-          title: "Sejarah Rintisan & Sanad Keilmuan SMATAQ Wonosobo",
-          content: "SMA Takhassus Al-Qur'an Wonosobo didirikan pada tahun 1989 atas bimbingan mendalam KH. Muntaha Al-Hafidz (Mbah Mun), pengasuh Pondok Pesantren Al-Asy'ariyyah Kalibeber. Beliau menginginkan lahirnya generasi Qurani yang melek teknologi (sains) namun tetap memegang teguh wirid, akhlak islami, serta kepribadian pesantren khas Nusantara.",
-          sourceType: "text",
-          timestamp: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-          isActive: true
-        },
-        {
-          id: "seed-2",
-          title: "Sistem Setoran Tahfidz & Wisuda Khotmil Qur'an",
-          content: "Setiap siswa SMATAQ wajib mengikuti setoran hafalan Al-Qur'an terpadu (Saba', Sabqi, dan Manzil) dihadapan asatidz penanggung jawab di asrama asuhan Yayasan Al-Asy'ariyyah. Wisuda khotmil Qur'an diselenggarakan berkala setiap tahun di halaman pesantren dan dihadiri ribuan wali murid serta tokoh nasional.",
-          sourceType: "text",
-          timestamp: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-          isActive: true
-        },
-        {
-          id: "seed-3",
-          title: "Panduan Seragam Resmi Yayasan Al-Asy'ariyyah",
-          content: "Ketentuan berpakaian siswa SMATAQ: \n- Senin - Selasa: Abu-Abu Putih rapi dengan songkok hitam bagi putra, jilbab kain putih bagi putri.\n- Rabu - Kamis: Batik / Kemeja kemitraan Al-Asy'ariyyah.\n- Jumat - Sabtu: Seragam Pramuka bersaku ganda / Baju muslim koko tasyiri hijau bordir.",
-          sourceType: "text",
-          timestamp: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-          isActive: true
-        }
-      ];
-      setCustomKnowledge(seedData);
-      localStorage.setItem("smataq_custom_knowledge", JSON.stringify(seedData));
+      setCustomKnowledge([]);
+      localStorage.setItem("smataq_custom_knowledge", JSON.stringify([]));
     }
   }, []);
   
@@ -87,7 +62,7 @@ export default function App() {
       {
         id: "init",
         role: "assistant",
-        content: "Assalamualaikum Wr. Wb. Selamat datang di pusat informasi SMATAQ Wonosobo. Saya **Asha**, asisten virtual resmi sekolah yang siap membantu Anda seputar profil sekolah, fasilitas unggulan, prestasi santri, dan informasi Penerimaan Peserta Didik Baru (PPDB) secara ramah, sopan, dan solutif. Ada yang bisa saya bantu hari ini?",
+        content: "Assalamualaikum Wr. Wb. Selamat datang di pusat informasi SMA Takhassus Al-Qur'an (SMATAQ) Wonosobo. Saya **Asha**, asisten virtual resmi sekolah. Silakan ketik pertanyaan Anda secara langsung, saya siap membantu.",
         timestamp: timeString
       }
     ]);
@@ -233,7 +208,7 @@ export default function App() {
     const initMessage = {
       id: "init-" + Date.now(),
       role: "assistant" as const,
-      content: "Assalamualaikum Wr. Wb. Selamat datang kembali di pusat informasi SMATAQ Wonosobo. Saya **Asha**, asisten virtual resmi siap membantu Anda seputar pendaftaran santri baru (PPDB) dan profil sekolah. Apa yang ingin Anda tanyakan?",
+      content: "Assalamualaikum Wr. Wb. Selamat datang kembali di pusat informasi SMA Takhassus Al-Qur'an (SMATAQ) Wonosobo. Saya **Asha**, asisten virtual resmi sekolah. Ada yang bisa saya bantu?",
       timestamp: timeString
     };
     setMessages([initMessage]);
@@ -242,8 +217,8 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-100 font-sans overflow-hidden">
-      {/* "Professional Polish" Themed Header/Nav */}
-      <nav className="bg-brand-500 text-white px-8 py-4 flex flex-col sm:flex-row justify-between items-center shadow-lg gap-4 select-none">
+      {/* Pure Dialogue Header / Nav */}
+      <nav className="bg-brand-500 text-white px-8 py-4 flex flex-row justify-between items-center shadow-lg gap-4 select-none">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-brand-500 font-extrabold text-xl shadow-inner">
             S
@@ -253,48 +228,17 @@ export default function App() {
               SMA Takhassus Al-Qur'an
             </h1>
             <p className="text-xs text-brand-100 opacity-85">
-              Wonosobo • Berdiri Sejak 1989 • Hafidzul Qur'an & Berprestasi
+              Wonosobo • Virtual Assistant Asha (Dialog Murni)
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs font-semibold">
-          <button 
-            id="nav-badge-prestasi"
-            onClick={() => handleSendMessage("Ceritakan tentang keunggulan dan deretan prestasi siswa SMATAQ!")}
-            className="opacity-75 hover:opacity-100 text-white transition-opacity cursor-pointer hidden sm:inline"
-          >
-            Prestasi
-          </button>
-          <span className="opacity-30 hidden sm:inline">•</span>
-          <button 
-            id="nav-badge-fasilitas"
-            onClick={() => handleSendMessage("Berapa rincian fasilitas kelas, laboratorium serta GOR olahraga di SMATAQ?")}
-            className="opacity-75 hover:opacity-100 text-white transition-opacity cursor-pointer hidden sm:inline"
-          >
-            Fasilitas
-          </button>
-          <span className="opacity-30 hidden sm:inline">•</span>
-          <button 
-            id="nav-badge-beasiswa"
-            onClick={() => handleSendMessage("Program beasiswa apa saja yang bisa saya dapatkan saat mendaftar online?")}
-            className="opacity-75 hover:opacity-100 text-white transition-opacity cursor-pointer hidden sm:inline"
-          >
-            Beasiswa
-          </button>
-          <a
-            href="http://ppdb.al-asyariyyah.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-full text-[11px] font-bold shadow-sm transition-all flex items-center gap-1 cursor-pointer"
-          >
-            Daftar PPDB <ExternalLink size={10} />
-          </a>
           <button
             id="nav-admin-console"
             onClick={() => setIsAdminOpen(true)}
-            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-1.5 rounded-full text-[11px] font-bold shadow-sm transition-all flex items-center gap-1 cursor-pointer ml-1"
+            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            <Settings size={11} /> Kelola Chatbot (Admin)
+            <Settings size={13} /> Kelola Chatbot (Admin)
           </button>
         </div>
       </nav>

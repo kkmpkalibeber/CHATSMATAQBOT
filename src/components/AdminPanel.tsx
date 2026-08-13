@@ -21,7 +21,10 @@ import {
   Image as ImageIcon,
   FileType,
   Loader2,
-  FileCheck
+  FileCheck,
+  Pencil,
+  Save,
+  RotateCcw
 } from "lucide-react";
 import { CustomKnowledgeItem } from "../types";
 
@@ -50,6 +53,12 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
   const [previewContent, setPreviewContent] = useState("");
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [parsingStatus, setParsingStatus] = useState("");
+  const [itemToDelete, setItemToDelete] = useState<CustomKnowledgeItem | null>(null);
+
+  // Editing state for updating existing knowledge documents
+  const [editingItem, setEditingItem] = useState<CustomKnowledgeItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
 
   // Load registered knowledge bases
   useEffect(() => {
@@ -60,38 +69,12 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
         setKnowledgeList(parsed);
       } catch (e) {
         console.error("Gagal memuat basis data tambahan.");
+        setKnowledgeList([]);
       }
     } else {
-      // Seed data template resmi dari web smataqwsb.sch.id
-      const seedData: CustomKnowledgeItem[] = [
-        {
-          id: "seed-1",
-          title: "Sejarah Rintisan & Sanad Keilmuan SMATAQ Wonosobo",
-          content: "SMA Takhassus Al-Qur'an Wonosobo didirikan pada tahun 1989 atas bimbingan mendalam KH. Muntaha Al-Hafidz (Mbah Mun), pengasuh Pondok Pesantren Al-Asy'ariyyah Kalibeber. Beliau menginginkan lahirnya generasi Qurani yang melek teknologi (sains) namun tetap memegang teguh wirid, akhlak islami, serta kepribadian pesantren khas Nusantara.",
-          sourceType: "text",
-          timestamp: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-          isActive: true
-        },
-        {
-          id: "seed-2",
-          title: "Sistem Setoran Tahfidz & Wisuda Khotmil Qur'an",
-          content: "Setiap siswa SMATAQ wajib mengikuti setoran hafalan Al-Qur'an terpadu (Saba', Sabqi, dan Manzil) dihadapan asatidz penanggung jawab di asrama asuhan Yayasan Al-Asy'ariyyah. Wisuda khotmil Qur'an diselenggarakan berkala setiap tahun di halaman pesantren dan dihadiri ribuan wali murid serta tokoh nasional.",
-          sourceType: "text",
-          timestamp: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-          isActive: true
-        },
-        {
-          id: "seed-3",
-          title: "Panduan Seragam Resmi Yayasan Al-Asy'ariyyah",
-          content: "Ketentuan berpakaian siswa SMATAQ: \n- Senin - Selasa: Abu-Abu Putih rapi dengan songkok hitam bagi putra, jilbab kain putih bagi putri.\n- Rabu - Kamis: Batik / Kemeja kemitraan Al-Asy'ariyyah.\n- Jumat - Sabtu: Seragam Pramuka bersaku ganda / Baju muslim koko tasyiri hijau bordir.",
-          sourceType: "text",
-          timestamp: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-          isActive: true
-        }
-      ];
-      setKnowledgeList(seedData);
-      localStorage.setItem("smataq_custom_knowledge", JSON.stringify(seedData));
-      onUpdateKnowledge(seedData);
+      setKnowledgeList([]);
+      localStorage.setItem("smataq_custom_knowledge", JSON.stringify([]));
+      onUpdateKnowledge([]);
     }
     
     // Maintain brief authentication session
@@ -374,11 +357,63 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
     setTimeout(() => setNotification(null), 4000);
   };
 
-  const handleDeleteItem = (id: string) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus dokumen data ini dari memori chatbot Asha?")) {
-      const newList = knowledgeList.filter((item) => item.id !== id);
-      triggerUpdate(newList);
+  const handleStartEdit = (item: CustomKnowledgeItem) => {
+    setEditingItem(item);
+    setEditTitle(item.title);
+    setEditContent(item.content);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    if (!editTitle.trim() || !editContent.trim()) {
+      alert("Judul dan isi dokumen tidak boleh kosong!");
+      return;
     }
+
+    const newList = knowledgeList.map((item) => {
+      if (item.id === editingItem.id) {
+        return {
+          ...item,
+          title: editTitle.trim(),
+          content: editContent.trim(),
+          timestamp: new Date().toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+          }) + " (Diperbarui)"
+        };
+      }
+      return item;
+    });
+
+    triggerUpdate(newList);
+    setEditingItem(null);
+    setNotification({ status: "success", text: `Dokumen "${editTitle}" berhasil diperbarui!` });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleClearAllKnowledge = () => {
+    if (window.confirm("Apakah Anda yakin ingin mengosongkan SELURUH basis data terdaftar? Seluruh dokumen akan dihapus agar Anda dapat mengunggah dari nol.")) {
+      triggerUpdate([]);
+      setNotification({ status: "success", text: "Seluruh basis data berhasil dikosongkan." });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleDeleteItem = (item: CustomKnowledgeItem) => {
+    setItemToDelete(item);
+  };
+
+  const confirmDelete = () => {
+    if (!itemToDelete) return;
+    const newList = knowledgeList.filter((k) => k.id !== itemToDelete.id);
+    triggerUpdate(newList);
+    setNotification({ status: "success", text: `Dokumen "${itemToDelete.title}" berhasil dihapus dari memori.` });
+    setItemToDelete(null);
+    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleToggleActive = (id: string) => {
@@ -766,7 +801,15 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   Basis Data Terdaftar ({knowledgeList.length} Berkas)
                 </span>
-                <span className="text-[9px] font-semibold text-slate-400">Terbaca secara Instan</span>
+                {knowledgeList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllKnowledge}
+                    className="text-[9.5px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <Trash2 size={10} /> Kosongkan Semua
+                  </button>
+                )}
               </div>
 
               {/* List */}
@@ -774,9 +817,9 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
                 {knowledgeList.length === 0 ? (
                   <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 p-6 flex flex-col items-center justify-center">
                     <FileCode size={32} className="text-slate-300 mb-2.5" />
-                    <h4 className="text-xs font-bold text-slate-600">Belum ada basis data tambahan</h4>
+                    <h4 className="text-xs font-bold text-slate-600">Belum ada basis data terdaftar</h4>
                     <p className="text-[10.5px] text-slate-400 max-w-xs mt-1.5 leading-relaxed">
-                      Tambahkan rincian keuangan, kalender akademik baru, rincian biaya seragam, atau file asrama lainnya di form kiri agar Asha dapat menjawab secara otomatis berbasis data tersebut.
+                      Silakan unggah atau ketik dokumen baru di panel sebelah kiri untuk menambahkan pengetahuan resmi sekolah.
                     </p>
                   </div>
                 ) : (
@@ -807,7 +850,7 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100 shrink-0">
                         <span className="text-[9px] text-slate-400 font-medium">Terdaftar: {item.timestamp}</span>
                         
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           {/* Active / Idle Toggle switch style button */}
                           <button
                             onClick={() => handleToggleActive(item.id)}
@@ -820,9 +863,18 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
                             {item.isActive ? "● Aktif" : "○ Idle"}
                           </button>
 
+                          {/* Edit document button */}
+                          <button
+                            onClick={() => handleStartEdit(item)}
+                            className="p-1 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors cursor-pointer"
+                            title="Edit / Update Dokumen"
+                          >
+                            <Pencil size={13} />
+                          </button>
+
                           {/* Delete document button */}
                           <button
-                            onClick={() => handleDeleteItem(item.id)}
+                            onClick={() => handleDeleteItem(item)}
                             className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
                             title="Hapus rujukan"
                           >
@@ -838,6 +890,129 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
           </div>
         )}
       </motion.div>
+
+      {/* Edit Knowledge Document Modal */}
+      <AnimatePresence>
+        {editingItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[130] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2 text-brand-600 font-bold text-sm">
+                  <Pencil size={18} />
+                  <span>Edit / Update Dokumen Basis Data</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Judul Dokumen / Rujukan
+                  </label>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    required
+                    className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-brand-500 focus:outline-none font-medium"
+                    placeholder="Contoh: Data Jumlah Guru & Staf TU 2026"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Isi Konten Dokumen (Teks / Hasil Parsi Excel)
+                  </label>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    required
+                    rows={10}
+                    className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-brand-500 focus:outline-none font-mono leading-relaxed resize-none"
+                    placeholder="Masukkan atau perbarui rincian teks dokumen..."
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Anda dapat mengubah, menambah baris, atau mengoreksi data tabel secara langsung di sini.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingItem(null)}
+                    className="flex-1 py-2.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <Save size={14} /> Simpan Perubahan
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Delete Confirmation Modal */}
+      <AnimatePresence>
+        {itemToDelete && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[120] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 text-center"
+            >
+              <div className="w-11 h-11 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Trash2 size={22} />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">Hapus Dokumen Basis Data?</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Apakah Anda yakin ingin menghapus dokumen <strong className="text-slate-700 font-semibold">"{itemToDelete.title}"</strong> dari memori pengetahuan Asha?
+              </p>
+              <div className="flex items-center gap-2.5 mt-5">
+                <button
+                  onClick={() => setItemToDelete(null)}
+                  className="flex-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 py-2 text-xs font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors cursor-pointer shadow-sm"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

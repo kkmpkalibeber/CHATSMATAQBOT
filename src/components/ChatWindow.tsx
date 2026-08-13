@@ -243,7 +243,7 @@ export default function ChatWindow({
           id="chat-input-field"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder="Tanyakan sesuatu ke Asha... (contoh: Beasiswa SMATAQ)"
+          placeholder="Ketik pertanyaan Anda secara langsung di sini..."
           disabled={isLoading}
           autoComplete="off"
           className="flex-1 text-xs bg-slate-50 border border-slate-200 focus:border-brand-500 focus:bg-white focus:outline-none px-4 py-2.5 rounded-xl transition-all font-medium disabled:opacity-60"
