@@ -1,20 +1,51 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { CustomKnowledgeItem } from "./types";
 
-// Firebase configuration using environment variables or safe defaults
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDummyApiKeyForStaticBuilds123456",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "smataq-bot.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "smataq-bot",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "smataq-bot.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1234567890",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1234567890:web:abcdef123456"
+// Helper to safely access env variables in both Vite and standard TS environments
+const getEnvVar = (key: string): string => {
+  try {
+    const metaEnv = (import.meta as unknown as { env?: Record<string, string> })?.env;
+    if (metaEnv && metaEnv[key]) return metaEnv[key];
+  } catch (e) {
+    // Ignore error if import.meta is undefined
+  }
+  return "";
 };
 
-console.log("[Firebase Init] Initializing app with Project ID:", firebaseConfig.projectId);
+// Firebase configuration using environment variables or fallback defaults
+const firebaseConfig = {
+  apiKey: getEnvVar("VITE_FIREBASE_API_KEY") || "AIzaSyDummyApiKeyForStaticBuilds123456",
+  authDomain: getEnvVar("VITE_FIREBASE_AUTH_DOMAIN") || "smataq-bot.firebaseapp.com",
+  projectId: getEnvVar("VITE_FIREBASE_PROJECT_ID") || "smataq-bot",
+  storageBucket: getEnvVar("VITE_FIREBASE_STORAGE_BUCKET") || "smataq-bot.appspot.com",
+  messagingSenderId: getEnvVar("VITE_FIREBASE_MESSAGING_SENDER_ID") || "1234567890",
+  appId: getEnvVar("VITE_FIREBASE_APP_ID") || "1:1234567890:web:abcdef123456"
+};
+
+console.log("[Firebase Diagnostic] Initializing App with Project ID:", firebaseConfig.projectId);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
+
+// Diagnostic function to verify connectivity on app load
+async function runFirestoreDiagnostics() {
+  console.log("[Firebase Diagnostic] Running connectivity check to Firestore...");
+  try {
+    const testSnap = await getDocs(collection(db, "smataq_custom_knowledge"));
+    console.log(`[Firebase Diagnostic] ✅ Firestore Connected Successfully! Document count in 'smataq_custom_knowledge': ${testSnap.size}`);
+  } catch (err: any) {
+    console.error("[Firebase Diagnostic] ❌ Firestore Connection Warning/Error:", {
+      code: err?.code || "unknown",
+      message: err?.message || String(err),
+      hint: "Check Firebase Security Rules or Project API Key configuration if permission is denied."
+    });
+  }
+}
+
+// Auto-trigger diagnostics on module load in browser environment
+if (typeof window !== "undefined") {
+  runFirestoreDiagnostics();
+}
 
 // Firestore collection references
 const KNOWLEDGE_COLLECTION = "smataq_custom_knowledge";
