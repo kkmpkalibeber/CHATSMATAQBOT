@@ -12,6 +12,7 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1234567890:web:abcdef123456"
 };
 
+console.log("[Firebase Init] Initializing app with Project ID:", firebaseConfig.projectId);
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 
@@ -23,6 +24,7 @@ const UNANSWERED_COLLECTION = "smataq_unanswered_questions";
  * Fetch all custom knowledge items from Firestore with LocalStorage fallback
  */
 export async function fetchCustomKnowledgeFromCloud(): Promise<CustomKnowledgeItem[]> {
+  console.log(`[Firestore] Fetching collection '${KNOWLEDGE_COLLECTION}'...`);
   try {
     const querySnapshot = await getDocs(collection(db, KNOWLEDGE_COLLECTION));
     const items: CustomKnowledgeItem[] = [];
@@ -30,20 +32,21 @@ export async function fetchCustomKnowledgeFromCloud(): Promise<CustomKnowledgeIt
       items.push(docSnap.data() as CustomKnowledgeItem);
     });
 
+    console.log(`[Firestore] Successfully fetched ${items.length} custom knowledge document(s).`);
     if (items.length > 0) {
-      // Sync local storage cache
       localStorage.setItem("smataq_custom_knowledge", JSON.stringify(items));
       return items;
     }
-  } catch (err) {
-    console.warn("Firestore fetch error, fallback to localStorage:", err);
+  } catch (err: any) {
+    console.warn("[Firestore] Fetch warning, falling back to local cache:", err?.message || err);
   }
 
-  // Fallback to localStorage cache
   const saved = localStorage.getItem("smataq_custom_knowledge");
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      console.log(`[LocalStorage Cache] Loaded ${parsed.length} item(s).`);
+      return parsed;
     } catch (e) {
       return [];
     }
@@ -55,17 +58,17 @@ export async function fetchCustomKnowledgeFromCloud(): Promise<CustomKnowledgeIt
  * Save / sync custom knowledge array to both Firestore and LocalStorage
  */
 export async function saveCustomKnowledgeToCloud(items: CustomKnowledgeItem[]): Promise<void> {
-  // Always update local storage first for immediate UI reactivity
+  console.log(`[Firestore] Syncing ${items.length} knowledge item(s) to cloud...`);
   localStorage.setItem("smataq_custom_knowledge", JSON.stringify(items));
 
   try {
-    // Sync each item to Firestore
     for (const item of items) {
       const docRef = doc(db, KNOWLEDGE_COLLECTION, item.id);
       await setDoc(docRef, item, { merge: true });
     }
-  } catch (err) {
-    console.warn("Firestore save batch warning:", err);
+    console.log("[Firestore] Save completed successfully.");
+  } catch (err: any) {
+    console.warn("[Firestore] Save warning:", err?.message || err);
   }
 }
 
@@ -73,12 +76,14 @@ export async function saveCustomKnowledgeToCloud(items: CustomKnowledgeItem[]): 
  * Delete a specific custom knowledge item from Firestore and LocalStorage
  */
 export async function deleteCustomKnowledgeFromCloud(itemId: string, updatedItems: CustomKnowledgeItem[]): Promise<void> {
+  console.log(`[Firestore] Deleting document ID '${itemId}'...`);
   localStorage.setItem("smataq_custom_knowledge", JSON.stringify(updatedItems));
   try {
     const docRef = doc(db, KNOWLEDGE_COLLECTION, itemId);
     await deleteDoc(docRef);
-  } catch (err) {
-    console.warn("Firestore delete document error:", err);
+    console.log(`[Firestore] Document '${itemId}' deleted successfully.`);
+  } catch (err: any) {
+    console.warn("[Firestore] Delete warning:", err?.message || err);
   }
 }
 
@@ -86,13 +91,15 @@ export async function deleteCustomKnowledgeFromCloud(itemId: string, updatedItem
  * Clear all knowledge items from Firestore and LocalStorage
  */
 export async function clearAllCustomKnowledgeFromCloud(): Promise<void> {
+  console.log("[Firestore] Clearing all knowledge documents...");
   localStorage.setItem("smataq_custom_knowledge", "[]");
   try {
     const querySnapshot = await getDocs(collection(db, KNOWLEDGE_COLLECTION));
     const deletePromises = querySnapshot.docs.map((d) => deleteDoc(doc(db, KNOWLEDGE_COLLECTION, d.id)));
     await Promise.all(deletePromises);
-  } catch (err) {
-    console.warn("Firestore clear error:", err);
+    console.log("[Firestore] All documents cleared.");
+  } catch (err: any) {
+    console.warn("[Firestore] Clear warning:", err?.message || err);
   }
 }
 
@@ -100,18 +107,20 @@ export async function clearAllCustomKnowledgeFromCloud(): Promise<void> {
  * Fetch unanswered questions from Firestore or LocalStorage
  */
 export async function fetchUnansweredQuestionsFromCloud(): Promise<any[]> {
+  console.log(`[Firestore] Fetching '${UNANSWERED_COLLECTION}'...`);
   try {
     const querySnapshot = await getDocs(collection(db, UNANSWERED_COLLECTION));
     const items: any[] = [];
     querySnapshot.forEach((docSnap) => {
       items.push(docSnap.data());
     });
+    console.log(`[Firestore] Fetched ${items.length} unanswered question(s).`);
     if (items.length > 0) {
       localStorage.setItem("smataq_unanswered_questions", JSON.stringify(items));
       return items;
     }
-  } catch (err) {
-    console.warn("Firestore unanswered questions fetch error:", err);
+  } catch (err: any) {
+    console.warn("[Firestore] Fetch unanswered warning:", err?.message || err);
   }
 
   const saved = localStorage.getItem("smataq_unanswered_questions");
@@ -129,6 +138,7 @@ export async function fetchUnansweredQuestionsFromCloud(): Promise<any[]> {
  * Log an unanswered question to Firestore and LocalStorage
  */
 export async function saveUnansweredQuestionToCloud(newItem: any): Promise<void> {
+  console.log("[Firestore] Saving unanswered question:", newItem.question);
   try {
     const savedStr = localStorage.getItem("smataq_unanswered_questions") || "[]";
     const saved = JSON.parse(savedStr);
@@ -137,7 +147,8 @@ export async function saveUnansweredQuestionToCloud(newItem: any): Promise<void>
 
     const docRef = doc(db, UNANSWERED_COLLECTION, newItem.id);
     await setDoc(docRef, newItem, { merge: true });
-  } catch (err) {
-    console.warn("Firestore unanswered save error:", err);
+    console.log("[Firestore] Unanswered question logged to cloud.");
+  } catch (err: any) {
+    console.warn("[Firestore] Save unanswered warning:", err?.message || err);
   }
 }
