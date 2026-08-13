@@ -27,6 +27,13 @@ import {
   RotateCcw
 } from "lucide-react";
 import { CustomKnowledgeItem } from "../types";
+import { 
+  saveCustomKnowledgeToCloud, 
+  deleteCustomKnowledgeFromCloud, 
+  clearAllCustomKnowledgeFromCloud, 
+  fetchCustomKnowledgeFromCloud, 
+  fetchUnansweredQuestionsFromCloud 
+} from "../firebaseConfig";
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -153,7 +160,7 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
 
   const triggerUpdate = (updatedList: CustomKnowledgeItem[]) => {
     setKnowledgeList(updatedList);
-    localStorage.setItem("smataq_custom_knowledge", JSON.stringify(updatedList));
+    saveCustomKnowledgeToCloud(updatedList);
     onUpdateKnowledge(updatedList);
   };
 
@@ -398,6 +405,7 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
   const handleClearAllKnowledge = () => {
     if (window.confirm("Apakah Anda yakin ingin mengosongkan SELURUH basis data terdaftar? Seluruh dokumen akan dihapus agar Anda dapat mengunggah dari nol.")) {
       triggerUpdate([]);
+      clearAllCustomKnowledgeFromCloud();
       setNotification({ status: "success", text: "Seluruh basis data berhasil dikosongkan." });
       setTimeout(() => setNotification(null), 3000);
     }
@@ -410,6 +418,7 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
   const confirmDelete = () => {
     if (!itemToDelete) return;
     const newList = knowledgeList.filter((k) => k.id !== itemToDelete.id);
+    deleteCustomKnowledgeFromCloud(itemToDelete.id, newList);
     triggerUpdate(newList);
     setNotification({ status: "success", text: `Dokumen "${itemToDelete.title}" berhasil dihapus dari memori.` });
     setItemToDelete(null);

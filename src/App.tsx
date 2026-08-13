@@ -5,6 +5,12 @@ import AdminPanel from "./components/AdminPanel";
 import { Message, CustomKnowledgeItem } from "./types";
 import { PROFIL_DATA, PPDB_DATA } from "./schoolData";
 import { 
+  fetchCustomKnowledgeFromCloud, 
+  fetchUnansweredQuestionsFromCloud, 
+  saveUnansweredQuestionToCloud 
+} from "./firebaseConfig";
+import { generateClientResponse } from "./clientAiEngine";
+import { 
   Building2, 
   MapPin, 
   Phone, 
@@ -26,20 +32,17 @@ export default function App() {
   const [customKnowledge, setCustomKnowledge] = useState<CustomKnowledgeItem[]>([]);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   
-  // Load custom knowledge data on startup
+  // Load custom knowledge data from Firestore Cloud on startup
   useEffect(() => {
-    const savedKnowledge = localStorage.getItem("smataq_custom_knowledge");
-    if (savedKnowledge) {
+    async function loadKnowledge() {
       try {
-        setCustomKnowledge(JSON.parse(savedKnowledge));
+        const cloudData = await fetchCustomKnowledgeFromCloud();
+        setCustomKnowledge(cloudData);
       } catch (e) {
-        console.error("Gagal memuat basis data tambahan.");
-        setCustomKnowledge([]);
+        console.error("Gagal memuat basis data dari Firestore:", e);
       }
-    } else {
-      setCustomKnowledge([]);
-      localStorage.setItem("smataq_custom_knowledge", JSON.stringify([]));
     }
+    loadKnowledge();
   }, []);
   
   // Set initial welcome message
@@ -68,22 +71,16 @@ export default function App() {
     ]);
   }, []);
 
-  // Save history
+  // Save chat history locally for instant session persistence
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem("smataq_chat_history", JSON.stringify(messages));
     }
   }, [messages]);
 
-  // Function to save unanswered / unresolved questions
-  const logUnansweredQuestion = (question: string, aiResponse: string, reportedBy: "auto" | "user") => {
+  // Function to save unanswered / unresolved questions to Cloud Firestore
+  const logUnansweredQuestion = async (question: string, aiResponse: string, reportedBy: "auto" | "user") => {
     try {
-      const savedStr = localStorage.getItem("smataq_unanswered_questions") || "[]";
-      const saved = JSON.parse(savedStr);
-      
-      const isDuplicate = saved.some((q: any) => q.question.toLowerCase().trim() === question.toLowerCase().trim());
-      if (isDuplicate) return;
-
       const newItem = {
         id: "unanswered-" + Date.now(),
         question: question.trim(),
@@ -98,8 +95,8 @@ export default function App() {
         status: "pending",
         reportedBy
       };
-      const updated = [newItem, ...saved];
-      localStorage.setItem("smataq_unanswered_questions", JSON.stringify(updated));
+      
+      await saveUnansweredQuestionToCloud(newItem);
       
       // Dispatch custom event to notify Admin Panel if it is open
       window.dispatchEvent(new CustomEvent("smataq_unanswered_updated"));
@@ -127,10 +124,10 @@ export default function App() {
     setMessages(updatedMessages);
     setIsLoading(true);
 
-    try {
-      // Send active knowledge inputs only
-      const activeKnowledge = customKnowledge.filter(item => item.isActive);
+    const activeKnowledge = customKnowledge.filter(item => item.isActive);
 
+    try {
+      // Try server-side API first
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -143,7 +140,7 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error("Gagal terhubung dengan server Asha.");
+        throw new Error("Server API tidak terjangkau (misal: di static hosting GitHub Pages).");
       }
 
       const data = await response.json();
@@ -153,7 +150,7 @@ export default function App() {
         minute: "2-digit"
       });
 
-      // Auto-detect if response indicates missing knowledge/fallback
+      // Auto-detect if response indicates missing knowledge
       const replyLower = (data.reply || "").toLowerCase();
       const lowConfidencePhrases = [
         "tidak menemukan informasi",
@@ -181,17 +178,24 @@ export default function App() {
         }
       ]);
     } catch (error) {
-      console.error(error);
+      // Fallback to Smart Client-Side Knowledge Engine (works 100% on GitHub Pages & Static Hosts!)
+      const clientResult = generateClientResponse(content, activeKnowledge);
+      
       const ashaTime = new Date().toLocaleTimeString("id-ID", {
         hour: "2-digit",
         minute: "2-digit"
       });
+
+      if (clientResult.isUnresolved) {
+        logUnansweredQuestion(content, clientResult.reply, "auto");
+      }
+
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: "Afwan (mohon maaf), saya mengalami kendala koneksi saat menghubungi server sekolah. Silakan hubungi Telepon Resmi kami di **0286-3326374** atau coba kirimkan pesan kembali beberapa saat lagi.",
+          content: clientResult.reply,
           timestamp: ashaTime
         }
       ]);
