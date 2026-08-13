@@ -268,9 +268,24 @@ export default function AdminPanel({ isOpen, onClose, onUpdateKnowledge }: Admin
 
         workbook.SheetNames.forEach((sheetName) => {
           const worksheet = workbook.Sheets[sheetName];
+          const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
           const csvData = XLSX.utils.sheet_to_csv(worksheet);
-          if (csvData.trim()) {
-            combinedText += `=== LEMBAR KERJA (SHEET): ${sheetName} ===\n${csvData}\n\n`;
+
+          if (jsonData.length > 0) {
+            combinedText += `=== DOKUMEN TABEL EXCEL [Sheet: ${sheetName}] ===\n`;
+            combinedText += `TOTAL BARIS DATA DOKUMEN: ${jsonData.length} baris\n\n`;
+            combinedText += `[FORMAT HASIL CSV/TABEL]:\n${csvData}\n\n`;
+            combinedText += `[RINCIAN DATA ITEM PER BARIS]:\n`;
+            jsonData.forEach((row, idx) => {
+              const rowDetails = Object.entries(row)
+                .filter(([_, v]) => String(v).trim() !== "")
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(" | ");
+              combinedText += `Data #${idx + 1}: ${rowDetails}\n`;
+            });
+            combinedText += `\n`;
+          } else if (csvData.trim()) {
+            combinedText += `=== DOKUMEN TABEL EXCEL [Sheet: ${sheetName}] ===\n${csvData}\n\n`;
           }
         });
 
